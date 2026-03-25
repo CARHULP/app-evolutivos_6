@@ -33,7 +33,7 @@ def limpio(v):
 
 
 # ==============================
-# 🧪 NUEVO PARSER ANALÍTICA
+# 🧪 PARSER ANALÍTICA
 # ==============================
 
 def extraer_valor_general(texto, claves):
@@ -51,7 +51,6 @@ def parsear_analitica(texto):
 
     t = texto.lower()
 
-    # FECHA
     fecha_match = re.search(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", texto)
     fecha = fecha_match.group(0) if fecha_match else ""
 
@@ -62,7 +61,7 @@ def parsear_analitica(texto):
 
     bloques = []
 
-    # HEMOGRAMA
+    # Hemograma
     hb = extraer_valor_general(t, ["hemoglobina", "hb"])
     leu = extraer_valor_general(t, ["leucocitos"])
     plt = extraer_valor_general(t, ["plaquetas"])
@@ -78,12 +77,12 @@ def parsear_analitica(texto):
     if hemograma:
         bloques.append("   - Hemograma: " + ", ".join(hemograma))
 
-    # COAGULACIÓN
+    # Coagulación
     inr = extraer_valor_general(t, ["inr"])
     if inr:
         bloques.append(f"   - Coagulación: INR {inr}")
 
-    # BIOQUÍMICA
+    # Bioquímica
     glc = extraer_valor_general(t, ["glucosa"])
     urea = extraer_valor_general(t, ["urea"])
     crea = extraer_valor_general(t, ["creatinina"])
@@ -120,7 +119,7 @@ def parsear_analitica(texto):
     if bio:
         bloques.append("   - Bioquímica: " + ", ".join(bio))
 
-    # GASOMETRÍA
+    # Gasometría
     ph = extraer_valor_general(t, [r"\bph\b"])
     pco2 = extraer_valor_general(t, ["pco2"])
     po2 = extraer_valor_general(t, ["po2"])
@@ -155,7 +154,7 @@ def parsear_analitica(texto):
 
 
 # ==============================
-# 🟢 FRASE INICIAL
+# FRASE INICIAL
 # ==============================
 def frase_inicial(row):
     partes = []
@@ -166,10 +165,7 @@ def frase_inicial(row):
 
     deamb = limpio(row.get("Deambulación"))
     if deamb:
-        if "no" in deamb.lower():
-            partes.append("no deambula")
-        else:
-            partes.append("deambula")
+        partes.append("no deambula" if "no" in deamb.lower() else "deambula")
 
     disnea = limpio(row.get("Disnea (mejora/igual/empeora)"))
     if disnea:
@@ -177,15 +173,11 @@ def frase_inicial(row):
 
     ortopnea = limpio(row.get("Ortopnea (Sí/No)"))
     if ortopnea:
-        if ortopnea.lower() == "sí":
-            partes.append("con ortopnea")
-        else:
-            partes.append("sin ortopnea")
+        partes.append("con ortopnea" if ortopnea.lower() == "sí" else "sin ortopnea")
 
     texto = "El paciente " + ", ".join(partes) + "."
 
     extras = []
-
     if row.get("Dolor torácico (Sí/No)") == "No":
         extras.append("sin dolor torácico")
     if row.get("Palpitaciones (Sí/No)") == "No":
@@ -196,9 +188,9 @@ def frase_inicial(row):
     if extras:
         texto += " " + ", ".join(extras) + "."
 
-    otros_anamnesis = limpio(row.get("Otros anamnesis"))
-    if otros_anamnesis:
-        extra = otros_anamnesis.strip().capitalize()
+    otros = limpio(row.get("Otros anamnesis"))
+    if otros:
+        extra = otros.strip().capitalize()
         if not extra.endswith("."):
             extra += "."
         texto += " " + extra
@@ -207,35 +199,23 @@ def frase_inicial(row):
 
 
 # ==============================
-# 🟢 EXPLORACIÓN
+# EXPLORACIÓN
 # ==============================
 def exploracion_fisica(row):
     bloques = []
 
-    if limpio(row.get("Constantes")):
-        bloques.append(f"- Constantes: {row['Constantes']}")
-
-    if limpio(row.get("General")):
-        bloques.append(f"- General: {row['General']}")
-
-    if limpio(row.get("VYI")):
-        bloques.append(f"- VYI: {row['VYI']}")
-
-    if limpio(row.get("Exploración cardiaca")):
-        bloques.append(f"- Auscultación cardiaca: {row['Exploración cardiaca']}")
-
-    if limpio(row.get("Exploración pulmonar")):
-        bloques.append(f"- Auscultación pulmonar: {row['Exploración pulmonar']}")
-
-    if limpio(row.get("Edemas MMII")):
-        bloques.append(f"- MMII: {row['Edemas MMII']}")
-
-    if limpio(row.get("Otros")):
-        bloques.append(f"- Otros: {row['Otros']}")
-
-    otros_ef = limpio(row.get("Otros EF"))
-    if otros_ef:
-        bloques.append(f"- Otros EF: {otros_ef.strip()}")
+    for campo, etiqueta in [
+        ("Constantes", "Constantes"),
+        ("General", "General"),
+        ("VYI", "VYI"),
+        ("Exploración cardiaca", "Auscultación cardiaca"),
+        ("Exploración pulmonar", "Auscultación pulmonar"),
+        ("Edemas MMII", "MMII"),
+        ("Otros EF", "Otros EF"),
+    ]:
+        valor = limpio(row.get(campo))
+        if valor:
+            bloques.append(f"- {etiqueta}: {valor}")
 
     if not bloques:
         return ""
@@ -244,7 +224,7 @@ def exploracion_fisica(row):
 
 
 # ==============================
-# 🟢 PPCC
+# PPCC
 # ==============================
 def pruebas_complementarias(row):
     bloques = []
@@ -253,14 +233,10 @@ def pruebas_complementarias(row):
     if analitica:
         bloques.append(analitica)
 
-    if limpio(row.get("Rx")):
-        bloques.append(f"- Rx: {row['Rx']}")
-
-    if limpio(row.get("ECG")):
-        bloques.append(f"- ECG: {row['ECG']}")
-
-    if limpio(row.get("Ecocardiograma")):
-        bloques.append(f"- Ecocardiograma: {row['Ecocardiograma']}")
+    for campo in ["Rx", "ECG", "Ecocardiograma"]:
+        valor = limpio(row.get(campo))
+        if valor:
+            bloques.append(f"- {campo}: {valor}")
 
     if not bloques:
         return ""
@@ -269,16 +245,19 @@ def pruebas_complementarias(row):
 
 
 # ==============================
-# 🟢 PLAN
+# PLAN
 # ==============================
 def plan(row):
     bloques = []
 
-    if limpio(row.get("Furosemida")):
-        bloques.append(f"- Furosemida: {row['Furosemida']}")
-
-    if limpio(row.get("Otros tratamientos")):
-        bloques.append(f"- Otros: {row['Otros tratamientos']}")
+    for campo, etiqueta in [
+        ("Furosemida", "Furosemida"),
+        ("Otros tratamientos"),
+        ("Plan", "Alta"),
+    ]:
+        valor = limpio(row.get(campo))
+        if valor:
+            bloques.append(f"- {etiqueta}: {valor}")
 
     if not bloques:
         return ""
@@ -287,7 +266,7 @@ def plan(row):
 
 
 # ==============================
-# 🟢 GENERADOR
+# GENERADOR
 # ==============================
 def generar_evolutivo(row):
     partes = []
@@ -310,7 +289,7 @@ def generar_evolutivo(row):
 
 
 # ==============================
-# 🟢 IA
+# IA
 # ==============================
 def corregir_con_ia(texto, model):
     if client is None:
@@ -343,6 +322,7 @@ if archivo:
     df = df.fillna("")
 
     st.success("Archivo cargado correctamente")
+    st.write("Columnas detectadas:", df.columns.tolist())
 
     if st.button("⚙️ Generar evolutivos"):
         resultados = []
@@ -354,7 +334,7 @@ if archivo:
                 texto = corregir_con_ia(texto, model)
 
             resultados.append({
-                "HCIS": row.get("HCIS", ""),
+                "HCIS": limpio(row.get("HCIS")) or "",
                 "Evolutivo": texto
             })
 
