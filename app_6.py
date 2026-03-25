@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import os
 import re
 from openai import OpenAI
 
@@ -119,34 +118,6 @@ def parsear_analitica(texto):
     if bio:
         bloques.append("   - Bioquímica: " + ", ".join(bio))
 
-    # Gasometría
-    ph = extraer_valor_general(t, [r"\bph\b"])
-    pco2 = extraer_valor_general(t, ["pco2"])
-    po2 = extraer_valor_general(t, ["po2"])
-    hco3 = extraer_valor_general(t, ["hco3", "bicarbonato"])
-    sbc = extraer_valor_general(t, ["sbc"])
-    lact = extraer_valor_general(t, ["lactato"])
-    gap = extraer_valor_general(t, ["gap"])
-
-    gaso = []
-    if ph:
-        gaso.append(f"pH {ph}")
-    if pco2:
-        gaso.append(f"PCO2 {pco2}")
-    if po2:
-        gaso.append(f"PO2 {po2}")
-    if hco3:
-        gaso.append(f"HCO3 {hco3}")
-    if sbc:
-        gaso.append(f"SBC {sbc}")
-    if lact:
-        gaso.append(f"lactato {lact}")
-    if gap:
-        gaso.append(f"GAP {gap}")
-
-    if gaso:
-        bloques.append("   - Gasometría venosa: " + ", ".join(gaso))
-
     if not bloques:
         return ""
 
@@ -159,36 +130,36 @@ def parsear_analitica(texto):
 def frase_inicial(row):
     partes = []
 
-    posicion = limpio(row.get("Se encuentra"))
+    posicion = limpio(row.get("se encuentra"))
     if posicion:
         partes.append(f"se encuentra {posicion}")
 
-    deamb = limpio(row.get("Deambulación"))
+    deamb = limpio(row.get("deambulación"))
     if deamb:
         partes.append("no deambula" if "no" in deamb.lower() else "deambula")
 
-    disnea = limpio(row.get("Disnea (mejora/igual/empeora)"))
+    disnea = limpio(row.get("disnea (mejora/igual/empeora)"))
     if disnea:
         partes.append(f"refiere {disnea} de la disnea")
 
-    ortopnea = limpio(row.get("Ortopnea (Sí/No)"))
+    ortopnea = limpio(row.get("ortopnea (sí/no)"))
     if ortopnea:
-        partes.append("con ortopnea" if ortopnea.lower() == "sí" else "sin ortopnea")
+        partes.append("con ortopnea" if ortopnea.lower() in ["sí", "si"] else "sin ortopnea")
 
     texto = "El paciente " + ", ".join(partes) + "."
 
     extras = []
-    if row.get("Dolor torácico (Sí/No)") == "No":
+    if row.get("dolor torácico (sí/no)") == "No":
         extras.append("sin dolor torácico")
-    if row.get("Palpitaciones (Sí/No)") == "No":
+    if row.get("palpitaciones (sí/no)") == "No":
         extras.append("sin palpitaciones")
-    if row.get("Mareo (Sí/No)") == "No":
+    if row.get("mareo (sí/no)") == "No":
         extras.append("sin mareo")
 
     if extras:
         texto += " " + ", ".join(extras) + "."
 
-    otros = limpio(row.get("Otros anamnesis"))
+    otros = limpio(row.get("otros anamnesis"))
     if otros:
         extra = otros.strip().capitalize()
         if not extra.endswith("."):
@@ -205,13 +176,13 @@ def exploracion_fisica(row):
     bloques = []
 
     for campo, etiqueta in [
-        ("Constantes", "Constantes"),
-        ("General", "General"),
-        ("VYI", "VYI"),
-        ("Exploración cardiaca", "Auscultación cardiaca"),
-        ("Exploración pulmonar", "Auscultación pulmonar"),
-        ("Edemas MMII", "MMII"),
-        ("Otros EF", "Otros EF"),
+        ("constantes", "Constantes"),
+        ("general", "General"),
+        ("vyi", "VYI"),
+        ("exploración cardiaca", "Auscultación cardiaca"),
+        ("exploración pulmonar", "Auscultación pulmonar"),
+        ("edemas mmii", "MMII"),
+        ("otros ef", "Otros EF"),
     ]:
         valor = limpio(row.get(campo))
         if valor:
@@ -229,14 +200,14 @@ def exploracion_fisica(row):
 def pruebas_complementarias(row):
     bloques = []
 
-    analitica = parsear_analitica(row.get("AS"))
+    analitica = parsear_analitica(row.get("as"))
     if analitica:
         bloques.append(analitica)
 
-    for campo in ["Rx", "ECG", "Ecocardiograma"]:
+    for campo in ["rx", "ecg", "ecocardiograma"]:
         valor = limpio(row.get(campo))
         if valor:
-            bloques.append(f"- {campo}: {valor}")
+            bloques.append(f"- {campo.upper()}: {valor}")
 
     if not bloques:
         return ""
@@ -251,9 +222,9 @@ def plan(row):
     bloques = []
 
     for campo, etiqueta in [
-        ("Furosemida", "Furosemida"),
-        ("Otros tratamientos"),
-        ("Plan", "Alta"),
+        ("furosemida", "Furosemida"),
+        ("otros tratamientos", "Otros"),
+        ("plan", "Plan previo"),
     ]:
         valor = limpio(row.get(campo))
         if valor:
@@ -318,7 +289,17 @@ archivo = st.file_uploader("Sube tu Excel", type=["xlsx"])
 if archivo:
     df = pd.read_excel(archivo)
 
-    df.columns = df.columns.str.strip().str.replace("\n", "")
+    # NORMALIZACIÓN CLAVE
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.replace("\n", "")
+        .str.lower()
+    )
+
+    # ELIMINAR DUPLICADAS
+    df = df.loc[:, ~df.columns.duplicated()]
+
     df = df.fillna("")
 
     st.success("Archivo cargado correctamente")
@@ -334,7 +315,7 @@ if archivo:
                 texto = corregir_con_ia(texto, model)
 
             resultados.append({
-                "HCIS": limpio(row.get("HCIS")) or "",
+                "HCIS": limpio(row.get("hcis")) or "",
                 "Evolutivo": texto
             })
 
