@@ -43,7 +43,6 @@ def extraer_valor_general(texto, claves):
             return m.group(1).replace(",", ".")
     return None
 
-
 def parsear_analitica(texto):
     if not texto or texto.strip() == "":
         return ""
@@ -60,7 +59,9 @@ def parsear_analitica(texto):
 
     bloques = []
 
-    # Hemograma
+    # =========================
+    # HEMOGRAMA
+    # =========================
     hb = extraer_valor_general(t, ["hemoglobina", "hb"])
     leu = extraer_valor_general(t, ["leucocitos"])
     plt = extraer_valor_general(t, ["plaquetas"])
@@ -76,12 +77,16 @@ def parsear_analitica(texto):
     if hemograma:
         bloques.append("   - Hemograma: " + ", ".join(hemograma))
 
-    # Coagulación
+    # =========================
+    # COAGULACIÓN
+    # =========================
     inr = extraer_valor_general(t, ["inr"])
     if inr:
         bloques.append(f"   - Coagulación: INR {inr}")
 
-    # Bioquímica
+    # =========================
+    # BIOQUÍMICA
+    # =========================
     glc = extraer_valor_general(t, ["glucosa"])
     urea = extraer_valor_general(t, ["urea"])
     crea = extraer_valor_general(t, ["creatinina"])
@@ -94,35 +99,89 @@ def parsear_analitica(texto):
     pct = extraer_valor_general(t, ["procalcitonina", "pct"])
 
     bio = []
-    if glc:
-        bio.append(f"glc {glc}")
-    if urea:
-        bio.append(f"urea {urea}")
-    if crea:
-        bio.append(f"creatinina {crea}")
-    if fg:
-        bio.append(f"filtrado glomerular {fg}")
-    if na:
-        bio.append(f"Na {na}")
-    if k:
-        bio.append(f"K {k}")
-    if cl:
-        bio.append(f"Cl {cl}")
-    if mg:
-        bio.append(f"magnesio {mg}")
-    if pcr:
-        bio.append(f"PCR {pcr}")
-    if pct:
-        bio.append(f"PCT {pct}")
+    if glc: bio.append(f"glc {glc}")
+    if urea: bio.append(f"urea {urea}")
+    if crea: bio.append(f"creatinina {crea}")
+    if fg: bio.append(f"filtrado glomerular {fg}")
+    if na: bio.append(f"Na {na}")
+    if k: bio.append(f"K {k}")
+    if cl: bio.append(f"Cl {cl}")
+    if mg: bio.append(f"magnesio {mg}")
+    if pcr: bio.append(f"PCR {pcr}")
+    if pct: bio.append(f"PCT {pct}")
 
     if bio:
         bloques.append("   - Bioquímica: " + ", ".join(bio))
 
+    # =========================
+    # 🧪 GASOMETRÍA (si presente)
+    # =========================
+    ph = extraer_valor_general(t, ["ph"])
+    pco2 = extraer_valor_general(t, ["pco2"])
+    lact = extraer_valor_general(t, ["lactato"])
+
+    gaso = []
+
+    try:
+        if ph and (float(ph) < 7.35 or float(ph) > 7.45):
+            gaso.append(f"pH {ph}")
+        if pco2 and (float(pco2) < 35 or float(pco2) > 45):
+            gaso.append(f"PCO2 {pco2}")
+        if lact and float(lact) > 2:
+            gaso.append(f"lactato {lact}")
+    except:
+        pass
+
+    if gaso:
+        bloques.append("   - Gasometría venosa: " + ", ".join(gaso))
+
+    # =========================
+    # 🩸 PERFIL FÉRRICO (si presente)
+    # =========================
+    hierro = extraer_valor_general(t, ["hierro"])
+    ferritina = extraer_valor_general(t, ["ferritina"])
+    sat = extraer_valor_general(t, ["saturación", "saturacion"])
+    transf = extraer_valor_general(t, ["transferrina"])
+
+    hierro_bloque = []
+    if hierro: hierro_bloque.append(f"hierro {hierro}")
+    if ferritina: hierro_bloque.append(f"ferritina {ferritina}")
+    if sat: hierro_bloque.append(f"sat transferrina {sat}")
+    if transf: hierro_bloque.append(f"transferrina {transf}")
+
+    if hierro_bloque:
+        bloques.append("   - Perfil férrico: " + ", ".join(hierro_bloque))
+
+    # =========================
+    # 🧬 PERFIL HEPÁTICO (solo si alterado)
+    # =========================
+    got = extraer_valor_general(t, ["got", "ast"])
+    gpt = extraer_valor_general(t, ["gpt", "alt"])
+    ggt = extraer_valor_general(t, ["ggt"])
+    fa = extraer_valor_general(t, ["fosfatasa alcalina"])
+
+    hep = []
+
+    try:
+        if got and float(got) > 40:
+            hep.append(f"GOT {got}")
+        if gpt and float(gpt) > 40:
+            hep.append(f"GPT {gpt}")
+        if ggt and float(ggt) > 50:
+            hep.append(f"GGT {ggt}")
+        if fa and float(fa) > 105:
+            hep.append(f"FA {fa}")
+    except:
+        pass
+
+    if hep:
+        bloques.append("   - Perfil hepático: " + ", ".join(hep))
+
+    # =========================
     if not bloques:
         return ""
 
     return cabecera + "\n" + "\n".join(bloques)
-
 
 # ==============================
 # FRASE INICIAL
